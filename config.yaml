@@ -1,0 +1,9 @@
+synth_name: 'Casiotone MT-11'
+presets:
+  preset1:
+    notes:
+      C4: 60
+      D4: 62
+      E4: 64
+    reverb: on
+    vibrato: on
