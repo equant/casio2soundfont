@@ -1,9 +1,16 @@
-synth_name: 'Casiotone MT-11'
+synth_name: 'Caio Casiotone MT-11'
 presets:
-  preset1:
-    notes:
-      C4: 60
-      D4: 62
-      E4: 64
-    reverb: on
-    vibrato: on
+  #- piano
+  #- electic piano
+  #- harp
+  - pipe organ
+  - organ
+  - accordion
+  - violin
+  - clarinet
+notes:
+  - F#3
+  - F#4
+  - F#5
+settings:
+  - vibrato
