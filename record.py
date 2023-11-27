@@ -214,14 +214,11 @@ for preset in presets:
 
     print("Normalizing and loop detection...")
     for file_path, peak_amplitude in peak_amplitudes.items():
-        print(f"    {file_path}")
-        print("--- Normalization ---")
+        print(f"Normalizing {file_path}")
         fs, audio_data = scipy.io.wavfile.read(file_path)
         normalized_audio = normalize_audio(audio_data, TARGET_PEAK, overall_peak)
         # Overwrite the file with normalized audio
         scipy.io.wavfile.write(file_path, fs, normalized_audio)
-
-        print("--- Loops ---")
 
         if not do_loop:
             print("Preset doesn't require loop finding.  Skipping loop finding.")
@@ -234,6 +231,7 @@ for preset in presets:
         if PLAY_LOOPS:
             ANSWER = False
             while(ANSWER == False):
+                print(f"Playing detected loop for {file_path}")
                 casioloopdetect.play_loop_with_intro(audio, sr, loop_start, loop_end, repeat_times=7)
                 yes_no = input("Use loop? (y/n)")
                 if yes_no == "n":
