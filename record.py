@@ -163,12 +163,11 @@ notes_range = synth_config['notes']
 if len(notes_range) == 2:
     # We grab white key notes between first and last
     notes = get_white_keys(notes_range[0], notes_range[1])
+    if TESTING:
+        #notes = notes[::4]
+        notes = notes[::8]
 else:
     notes = notes_range
-
-if TESTING:
-    #notes = notes[::4]
-    notes = notes[::8]
 
 ##################################################
 #                      Main                      #

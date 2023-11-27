@@ -1,7 +1,5 @@
 synth_name: 'Casio Casiotone MT-70'
 presets:
-  - name: cosmic flute
-    loop: true
   - name: vibraphone
     loop: false
   - name: pipe organ
