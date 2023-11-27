@@ -1,14 +1,25 @@
 synth_name: 'Casio Casiotone MT-70'
 presets:
-  - pipe organ
-  - wood wind
-  - vibraphone
-  - flute
-  - wah brass
-  - chorus
-  - synth. brass
-  - jazz organ2
-  - synth. bells
+  - name: pipe organ
+    loop: true
+  - name: vibraphone
+    loop: false
+  - name: wah brass
+    loop: true
+  - name: flute
+    loop: true
+  - name: wood wind
+    loop: true
+  - name: chorus
+    loop: true
+  - name: synth. brass
+    loop: true
+  - name: jazz organ2
+    loop: true
+  - name: synth. bells
+    loop: false
+  - name: piano
+    loop: false
 notes:
   - C1
   - C5
