@@ -4,12 +4,9 @@ import numpy as np
 import sounddevice as sd
 import librosa
 import scipy.io.wavfile
-#from scipy.io.wavfile import write
-#from scipy.io import wavefile
 import wave
 import time
 import yaml
-import pymusiclooper.core
 import casioloopdetect
 
 print(sd.query_devices())
