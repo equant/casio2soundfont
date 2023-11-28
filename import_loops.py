@@ -154,26 +154,6 @@ def get_idx_shdr(shdr_data, name):
             return idx
     return None
 
-soundfont_file = 'Casio MT-70.sf2'
-
-# Open soundfont and show sample headers
-#sf = read_sf2(soundfont_file)
-#pdta = sf[b'RIFF']['sub_chunks']['LIST (pdta)']
-#shdr = pdta[b'shdr']
-#parsed_headers = parse_shdr_chunk(shdr)
-#for header in parsed_headers:
-#    print(header)
-
-sf2_data = read_sf2('Casio MT-70.sf2')
-
-pdta = sf2_data['chunks'][2]
-shdr = pdta['sub_chunks'][b'shdr']
-shdr_data = parse_shdr_chunk(shdr)
-#shdr_data[0]['startLoop'] = 66666
-#shdr_data[0]['endLoop'] = 66666
-
-synth_dir = "/home/equant/projects/audio/casio2soundfont/recordings/Casio Casiotone MT-70"
-
 def get_loops_from_file(loop_file_path):
     loop_dict = {}
     #filepath = os.path.join(preset_dir, "selected_loops.txt")
@@ -187,6 +167,32 @@ def get_loops_from_file(loop_file_path):
                 loop_dict[filename] = (start, stop)
     return loop_dict
 
+def get_shdr_data(sf2_data):
+    pdta = sf2_data['chunks'][2]
+    shdr = pdta['sub_chunks'][b'shdr']
+    return parse_shdr_chunk(shdr)
+
+# Open soundfont and show sample headers
+#sf = read_sf2(soundfont_file)
+#pdta = sf[b'RIFF']['sub_chunks']['LIST (pdta)']
+#shdr = pdta[b'shdr']
+#parsed_headers = parse_shdr_chunk(shdr)
+#for header in parsed_headers:
+#    print(header)
+#
+#shdr_data[0]['startLoop'] = 66666
+#shdr_data[0]['endLoop'] = 66666
+
+sf2_dir = "/home/equant/projects/audio/sf2"
+soundfont_file = 'Casio MT-70.sf2'
+soundfont_path = os.path.join(sf2_dir, soundfont_file)
+
+sf2_data = read_sf2(soundfont_path)
+shdr_data = get_shdr_data(sf2_data)
+original_shrd_data = shdr_data.copy()
+
+synth_dir = "/home/equant/projects/audio/casio2soundfont/recordings/Casio Casiotone MT-70"
+
 for idx, sample in enumerate(shdr_data):
     print(f"Sample: {sample['name']}")
     if sample['name'] == 'EOS':
@@ -195,14 +201,27 @@ for idx, sample in enumerate(shdr_data):
     preset_dir = os.path.join(synth_dir, preset)
     loop_file_path = os.path.join(preset_dir, "selected_loops.txt")
     if not os.path.isfile(loop_file_path):
+        shdr_data[idx]['startLoop'] = 0
+        shdr_data[idx]['endLoop'] = 0
         print(f"No loop file found for {preset}")
-        break
         continue
     loop_dict = get_loops_from_file(loop_file_path)
     wavefile = sample['name'] + ".wav"
-    shdr_data[idx]['startLoop'] = loop_dict[wavefile][0]
-    shdr_data[idx]['endLoop'] = loop_dict[wavefile][1]
+    sample_length = shdr_data[idx]['end'] - shdr_data[idx]['start']
+    shdr_data[idx]['startLoop'] = sample['start'] + loop_dict[wavefile][0]
+    shdr_data[idx]['endLoop'] = sample['start'] + loop_dict[wavefile][1]
 
 new_shdr = pack_shdr_chunk(shdr_data)
 sf2_data['chunks'][2]['sub_chunks'][b'shdr'] = new_shdr
-write_sf2('modified.sf2', sf2_data)
+new_sounndfont_path = os.path.join(sf2_dir, "modified.sf2")
+write_sf2(new_sounndfont_path, sf2_data)
+
+modified_sf2_data = read_sf2(new_sounndfont_path)
+modified_shdr_data = get_shdr_data(modified_sf2_data)
+
+print(original_shrd_data[-2])
+print(shdr_data[-2])
+print(modified_shdr_data[-2])
+
+print(sf2_data['chunks'][2]['sub_chunks'][b'shdr'])
+print(modified_sf2_data['chunks'][2]['sub_chunks'][b'shdr'])
