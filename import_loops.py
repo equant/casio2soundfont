@@ -164,7 +164,9 @@ def get_loops_from_file(loop_file_path):
             if len(parts) >= 3:  # Ensure there are enough parts in the line
                 filename = parts[0].split('/')[-1]
                 start, stop = int(parts[1]), int(parts[2])
-                loop_dict[filename] = (start, stop)
+                score = float(parts[3])
+                quality = str(parts[4])
+                loop_dict[filename] = (start, stop, score, quality)
     return loop_dict
 
 def get_shdr_data(sf2_data):
@@ -183,15 +185,15 @@ def get_shdr_data(sf2_data):
 #shdr_data[0]['startLoop'] = 66666
 #shdr_data[0]['endLoop'] = 66666
 
-sf2_dir = "/home/equant/projects/audio/sf2"
-soundfont_file = 'Casio MT-70.sf2'
+sf2_dir = "/home/equant/projects/audio/fluidpatcher/SquishBox/sf2/"
+soundfont_file = 'CasioMT11.sf2'
 soundfont_path = os.path.join(sf2_dir, soundfont_file)
 
 sf2_data = read_sf2(soundfont_path)
 shdr_data = get_shdr_data(sf2_data)
 original_shrd_data = shdr_data.copy()
 
-synth_dir = "/home/equant/projects/audio/casio2soundfont/recordings/Casio Casiotone MT-70"
+synth_dir = "/home/equant/projects/audio/casio2soundfont/recordings/Casio Casiotone MT-11"
 
 for idx, sample in enumerate(shdr_data):
     print(f"Sample: {sample['name']}")
@@ -208,6 +210,9 @@ for idx, sample in enumerate(shdr_data):
     loop_dict = get_loops_from_file(loop_file_path)
     wavefile = sample['name'] + ".wav"
     sample_length = shdr_data[idx]['end'] - shdr_data[idx]['start']
+    loop_quality = loop_dict[wavefile][3]
+    print(f"         {loop_dict[wavefile][0]}")
+    print(f"         {loop_dict[wavefile][1]}")
     shdr_data[idx]['startLoop'] = sample['start'] + loop_dict[wavefile][0]
     shdr_data[idx]['endLoop'] = sample['start'] + loop_dict[wavefile][1]
 
@@ -216,12 +221,12 @@ sf2_data['chunks'][2]['sub_chunks'][b'shdr'] = new_shdr
 new_sounndfont_path = os.path.join(sf2_dir, "modified.sf2")
 write_sf2(new_sounndfont_path, sf2_data)
 
-modified_sf2_data = read_sf2(new_sounndfont_path)
-modified_shdr_data = get_shdr_data(modified_sf2_data)
+#modified_sf2_data = read_sf2(new_sounndfont_path)
+#modified_shdr_data = get_shdr_data(modified_sf2_data)
 
-print(original_shrd_data[-2])
-print(shdr_data[-2])
-print(modified_shdr_data[-2])
+#print(original_shrd_data[-2])
+#print(shdr_data[-2])
+#print(modified_shdr_data[-2])
 
-print(sf2_data['chunks'][2]['sub_chunks'][b'shdr'])
-print(modified_sf2_data['chunks'][2]['sub_chunks'][b'shdr'])
+#print(sf2_data['chunks'][2]['sub_chunks'][b'shdr'])
+#print(modified_sf2_data['chunks'][2]['sub_chunks'][b'shdr'])

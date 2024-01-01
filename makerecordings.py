@@ -1,4 +1,4 @@
-import os, glob, random
+import os, glob, random, sys
 import itertools
 import numpy as np
 import sounddevice as sd
@@ -12,9 +12,9 @@ import casioloopdetect
 print(sd.query_devices())
 
 config_file = "casio_MT-70.yaml"
+config_file = "casio_MT-11.yaml"
 
 #DEVICE_NUMBER     = 4
-TESTING            = True
 SAMPLE_RATE        = 44100
 SILENCE_DURATION   = 2.0
 MAX_RECORD_SECONDS = 10
@@ -23,7 +23,7 @@ STOP_THRESHOLD     = 0.005
 WAIT_TIMEOUT       = 20
 TARGET_PEAK_DB     = -1 # dB
 TARGET_PEAK        = 10 ** (TARGET_PEAK_DB / 20)
-PLAY_LOOPS         = True # If you trust the loop detection, make this False and it'll be much faster.
+PLAY_LOOPS         = False # If you trust the loop detection, make this False and it'll be much faster.
 
 def get_white_keys(start, end):
     white_keys = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
@@ -51,18 +51,26 @@ def record_silence(duration=5, fs=SAMPLE_RATE):
         for _ in range(int(duration * fs / 1024)):
             data, _ = stream.read(1024)
             buffer.extend(data[:, 0])
-    return np.array(buffer)
+    return np.array(buffer[15:])    # [10:] because I get pops sometimes at the very beginning of recording.
 
 
 def trim_silence(audio_data, threshold):
     # Find the first index where audio exceeds the threshold
-    start_index = next((i for i, sample in enumerate(audio_data) if abs(sample) > threshold*0.9), None)
+    #start_index = next((i for i, sample in enumerate(audio_data) if abs(sample) > threshold*0.9), None)
+    start_index = next((i for i, sample in enumerate(audio_data) if abs(sample) > threshold*0.8), None)
+    zero_start_index = casioloopdetect.find_zero_crossing(audio_data, start_index, direction='reverse')
+    print(f"start zerocrossing ({start_index} -> {zero_start_index})")
+    print(audio_data[zero_start_index-1:zero_start_index+2])
 
     # Find the last index where audio exceeds the threshold
-    end_index = next((i for i, sample in enumerate(reversed(audio_data)) if abs(sample) > threshold*0.333), None)
+    #end_index = next((i for i, sample in enumerate(reversed(audio_data)) if abs(sample) > threshold*0.333), None)
+    end_index = next((i for i, sample in enumerate(reversed(audio_data)) if abs(sample) > threshold*0.2), None)
+    zero_end_index = casioloopdetect.find_zero_crossing(audio_data, end_index)
+    print(f"end zerocrossing ({end_index} -> {zero_end_index})")
+    print(audio_data[zero_end_index-1:zero_end_index+2])
 
-    if start_index is not None and end_index is not None:
-        trimmed_audio = audio_data[start_index:-end_index]
+    if zero_start_index is not None and zero_end_index is not None:
+        trimmed_audio = audio_data[zero_start_index:-zero_end_index]
     else:
         trimmed_audio = audio_data
 
@@ -111,7 +119,7 @@ def record_note(fs=SAMPLE_RATE,
                 if (time.time() - note_start_time) > max_record_seconds:
                     break
 
-    return np.array(buffer)
+    return np.array(buffer[15:])    # [15:] because I get pops sometimes at the very beginning of recording.
 
 def amplitude_to_db(amplitude):
     return 20 * np.log10(abs(amplitude))
@@ -163,9 +171,7 @@ notes_range = synth_config['notes']
 if len(notes_range) == 2:
     # We grab white key notes between first and last
     notes = get_white_keys(notes_range[0], notes_range[1])
-    if TESTING:
-        #notes = notes[::4]
-        notes = notes[::8]
+    notes = notes[::2] # Every other white key.
 else:
     notes = notes_range
 
@@ -200,8 +206,15 @@ for preset in presets:
                 peak_db = amplitude_to_db(peak_amplitude)
                 peak_amplitudes[file_path] = peak_amplitude
                 print(f"Peak Volume Level: {peak_db} dB")
-                trimmed_audio = trim_silence(audio_data, TRIM_THRESHOLD)  # Or use another threshold based on your noise floor analysis
+                trimmed_audio = trim_silence(audio_data, TRIM_THRESHOLD)
                 scipy.io.wavfile.write(file_path, SAMPLE_RATE, trimmed_audio)
+                len_removed_s = (len(audio_data) - len(trimmed_audio)) / SAMPLE_RATE
+                len_original_s = len(audio_data) / SAMPLE_RATE
+                print(f"    trimmed {len_removed_s:0.2f} seconds {len_removed_s / len_original_s:0.2f}%")
+                if (len(trimmed_audio)/SAMPLE_RATE) < 1:
+                    print(f"    WARNING!!!! new audio is only {len(trimmed_audio)/SAMPLE_RATE:0.2f} seconds long")
+                if (trimmed_audio[:30] == audio_data[:30]).all():
+                    print(f"    WARNING!!!! Nothing was trimmed from the beginning of the recording.")
                 print(f"    ...Saved {file_path}")
             else:
                 print("Gave up waiting.")
@@ -227,6 +240,7 @@ for preset in presets:
         fraction_of_expected_loop = 0.2
         loop_start, loop_end, score = casioloopdetect.find_seamless_loop(audio, sr, fraction_of_expected_loop)
 
+        good_loop = True
         if PLAY_LOOPS:
             ANSWER = False
             while(ANSWER == False):
@@ -234,20 +248,31 @@ for preset in presets:
                 casioloopdetect.play_loop_with_intro(audio, sr, loop_start, loop_end, repeat_times=7)
                 yes_no = input("Use loop? (y/n)")
                 if yes_no == "n":
-                    with open(os.path.join(dir_name, "bad_loops.txt"), "a") as badloopf:
-                        badloopf.write(f"{file_path},{loop_start},{loop_end},{score}\n")
                     ANSWER = True
+                    good_loop = False
                     continue
                 if yes_no == "y":
                     ANSWER = True
+                    good_loop = True
 
+        # Save bad loop info
+        if not good_loop:
+            with open(os.path.join(dir_name, "bad_loops.txt"), "a") as badloopf:
+                badloopf.write(f"{file_path},{loop_start},{loop_end},{score}\n")
+            with open(os.path.join(dir_name, "selected_loops.txt"), "a") as goodloopf:
+                goodloopf.write(f"{file_path},{loop_start},{loop_end},{score},bad\n")
+            continue
+
+        # Save good loop info
         if loop_start is not None and loop_end is not None:
             print(f"Best loop from {loop_start} to {loop_end}. Score: {score}")
             with open(os.path.join(dir_name, "selected_loops.txt"), "a") as goodloopf:
-                goodloopf.write(f"{file_path},{loop_start},{loop_end},{score}\n")
-        else:
-            print("No suitable loop found.")
-            with open(os.path.join(dir_name, "bad_loops.txt"), "a") as badloopf:
-                badloopf.write(f"{file_path}\n")
+                goodloopf.write(f"{file_path},{loop_start},{loop_end},{score},good\n")
+            continue
+
+        # Save no loop found info
+        print("No suitable loop found.")
+        with open(os.path.join(dir_name, "selected_loops.txt"), "a") as goodloopf:
+            goodloopf.write(f"{file_path},{loop_start},{loop_end},{score},bad\n")
 
     print("...done.")
